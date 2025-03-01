@@ -1,0 +1,2 @@
+# ABAP-OLLAMA-CLIENT
+ABAP Ollama client
