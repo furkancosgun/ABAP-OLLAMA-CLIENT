@@ -1,5 +1,5 @@
 "! Provides methods to manage and retrieve information about models.
-interface ZIF_OLLAMA_MODEL_MANAGEMENT
+interface ZIF_OLLAMA_MODEL_MANAGER
   public .
 
 

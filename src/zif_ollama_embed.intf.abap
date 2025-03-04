@@ -1,5 +1,5 @@
 "! Provides methods to generate embeddings using Ollama models.
-interface ZIF_OLLAMA_EMBEDDING
+interface ZIF_OLLAMA_EMBED
   public .
 
 

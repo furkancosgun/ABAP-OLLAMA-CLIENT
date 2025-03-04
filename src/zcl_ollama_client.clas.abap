@@ -1,6 +1,3 @@
-"! @class zcl_ollama_client
-"! Implements the zif_ollama_client interface to interact with the Ollama API.
-"! This class handles HTTP requests, serialization, and deserialization of data.
 CLASS zcl_ollama_client DEFINITION
   PUBLIC FINAL
   CREATE PRIVATE.
@@ -21,17 +18,20 @@ CLASS zcl_ollama_client DEFINITION
                 it_head            TYPE zif_ollama_http=>ty_headers OPTIONAL
       RETURNING VALUE(ro_instance) TYPE REF TO zif_ollama_client.
 
-  PRIVATE SECTION.
+  PROTECTED SECTION.
     "! Constructor for the Ollama client.
     "! @parameter iv_host | The host URL of the Ollama API.
     "! @parameter iv_locl | If true, uses local HTTP calls.
     "! @parameter iv_timo | The timeout for HTTP requests in seconds.
     "! @parameter it_head | Optional HTTP headers.
     METHODS constructor
-      IMPORTING iv_host TYPE string
-                iv_locl TYPE abap_bool
-                iv_timo TYPE i
-                it_head TYPE zif_ollama_http=>ty_headers.
+      IMPORTING iv_host TYPE string                      DEFAULT zif_ollama_common=>mc_default_host
+                iv_locl TYPE abap_bool                   DEFAULT abap_true
+                iv_timo TYPE i                           DEFAULT zif_ollama_common=>mc_default_timo
+                it_head TYPE zif_ollama_http=>ty_headers OPTIONAL.
+
+    METHODS prepare_options
+      CHANGING ct_options TYPE zif_ollama_common=>ty_options.
 
     DATA host   TYPE string.
     DATA head   TYPE zif_ollama_http=>ty_headers.
@@ -41,6 +41,13 @@ ENDCLASS.
 
 
 CLASS zcl_ollama_client IMPLEMENTATION.
+  METHOD create.
+    ro_instance = NEW zcl_ollama_client( iv_host = iv_host
+                                         it_head = it_head
+                                         iv_locl = iv_locl
+                                         iv_timo = iv_timo ).
+  ENDMETHOD.
+
   METHOD constructor.
     host = iv_host.
     IF host CP '*/'.
@@ -66,76 +73,89 @@ CLASS zcl_ollama_client IMPLEMENTATION.
     parser = zcl_ollama_parser=>get_instance( ).
   ENDMETHOD.
 
-  METHOD create.
-    ro_instance = NEW zcl_ollama_client( iv_host = iv_host
-                                         it_head = it_head
-                                         iv_locl = iv_locl
-                                         iv_timo = iv_timo ).
-  ENDMETHOD.
-
-  METHOD zif_ollama_chat~chat.
-    IF NOT line_exists( is_request-options[ key = 'stream' ] ).
-      INSERT VALUE #( key   = 'stream'
-                      value = REF #( abap_false ) ) INTO TABLE is_request-options.
+  METHOD prepare_options.
+    IF NOT line_exists( ct_options[ key = zif_ollama_client=>mc_options-stream ] ).
+      INSERT VALUE #( key   = zif_ollama_client=>mc_options-stream
+                      value = REF #( abap_false ) ) INTO TABLE ct_options.
+    ELSE.
+      ct_options[ key = zif_ollama_client=>mc_options-stream ]-value = REF #( abap_false ).
     ENDIF.
-    DATA(request) = parser->serialize( data    = is_request
-                                       options = abap_true ).
-    DATA(response) = http->post( iv_url     = |{ host }/api/chat|
-                                 it_headers = head
-                                 iv_data    = request ).
-    parser->deserialize( EXPORTING iv_data = response
-                         CHANGING  data    = rs_response ).
   ENDMETHOD.
 
   METHOD zif_ollama_connection~check_connection.
     TRY.
-        me->zif_ollama_model_management~get_available_models( ).
+        http->get( iv_url     = |{ host }{ zif_ollama_client=>mc_endpoints-tags }|
+                   it_headers = head ).
         rv_available = abap_true.
       CATCH zcx_ollama_message.
+        rv_available = abap_false.
     ENDTRY.
   ENDMETHOD.
 
-  METHOD zif_ollama_embedding~embed.
-    IF NOT line_exists( is_request-options[ key = 'stream' ] ).
-      INSERT VALUE #( key   = 'stream'
-                      value = REF #( abap_false ) ) INTO TABLE is_request-options.
-    ENDIF.
-    DATA(request) = parser->serialize( data    = is_request
-                                       options = abap_true ).
-    DATA(response) = http->post( iv_url     = |{ host }/api/embed|
-                                 it_headers = head
-                                 iv_data    = request ).
+  METHOD zif_ollama_chat~chat.
+    DATA request  TYPE string.
+    DATA response TYPE string.
+
+    prepare_options( CHANGING ct_options = is_request-options ).
+
+    request = parser->serialize( data    = is_request
+                                 options = abap_true ).
+    response = http->post( iv_url     = |{ host }{ zif_ollama_client=>mc_endpoints-chat }|
+                           it_headers = head
+                           iv_data    = request ).
     parser->deserialize( EXPORTING iv_data = response
                          CHANGING  data    = rs_response ).
   ENDMETHOD.
 
-  METHOD zif_ollama_generation~generate.
-    IF NOT line_exists( is_request-options[ key = 'stream' ] ).
-      INSERT VALUE #( key   = 'stream'
-                      value = REF #( abap_false ) ) INTO TABLE is_request-options.
-    ENDIF.
+  METHOD zif_ollama_embed~embed.
+    DATA request  TYPE string.
+    DATA response TYPE string.
 
-    DATA(request) = parser->serialize( data    = is_request
-                                       options = abap_true ).
-    DATA(response) = http->post( iv_url     = |{ host }/api/generate|
-                                 it_headers = head
-                                 iv_data    = request ).
+    prepare_options( CHANGING ct_options = is_request-options ).
+
+    request = parser->serialize( data    = is_request
+                                 options = abap_true ).
+
+    response = http->post( iv_url     = |{ host }{ zif_ollama_client=>mc_endpoints-embed }|
+                           it_headers = head
+                           iv_data    = request ).
     parser->deserialize( EXPORTING iv_data = response
                          CHANGING  data    = rs_response ).
   ENDMETHOD.
 
-  METHOD zif_ollama_model_management~get_available_models.
-    DATA(response) = http->get( iv_url     = |{ host }/api/tags|
-                                it_headers = head ).
+  METHOD zif_ollama_generate~generate.
+    DATA request  TYPE string.
+    DATA response TYPE string.
+
+    prepare_options( CHANGING ct_options = is_request-options ).
+
+    request = parser->serialize( data    = is_request
+                                 options = abap_true ).
+
+    response = http->post( iv_url     = |{ host }{ zif_ollama_client=>mc_endpoints-generate }|
+                           it_headers = head
+                           iv_data    = request ).
     parser->deserialize( EXPORTING iv_data = response
                          CHANGING  data    = rs_response ).
   ENDMETHOD.
 
-  METHOD zif_ollama_model_management~get_model_details.
-    DATA(request) = parser->serialize( data = is_request ).
-    DATA(response) = http->post( iv_url     = |{ host }/api/show|
-                                 it_headers = head
-                                 iv_data    = request ).
+  METHOD zif_ollama_model_manager~get_available_models.
+    DATA response TYPE string.
+
+    response = http->get( iv_url     = |{ host }{ zif_ollama_client=>mc_endpoints-tags }|
+                          it_headers = head ).
+    parser->deserialize( EXPORTING iv_data = response
+                         CHANGING  data    = rs_response ).
+  ENDMETHOD.
+
+  METHOD zif_ollama_model_manager~get_model_details.
+    DATA request  TYPE string.
+    DATA response TYPE string.
+
+    request = parser->serialize( data = is_request ).
+    response = http->post( iv_url     = |{ host }{ zif_ollama_client=>mc_endpoints-show }|
+                           it_headers = head
+                           iv_data    = request ).
     parser->deserialize( EXPORTING iv_data = response
                          CHANGING  data    = rs_response ).
   ENDMETHOD.

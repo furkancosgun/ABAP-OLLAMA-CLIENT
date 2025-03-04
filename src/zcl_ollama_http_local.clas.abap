@@ -95,7 +95,9 @@ CLASS zcl_ollama_http_local IMPLEMENTATION.
     ENDIF.
     IF lv_http_code >= 400.
       handle_http_error( iv_status_code = CONV #( lv_http_code )
-                         iv_status_text = CONV #( lv_http_text ) ).
+                         iv_status_text = CONV #( COND #( WHEN lt_response_body IS NOT INITIAL
+                                                          THEN concat_lines_of( lt_response_body )
+                                                          ELSE lv_http_text ) ) ).
     ENDIF.
 
     rv_body = concat_lines_of( table = lt_response_body ).

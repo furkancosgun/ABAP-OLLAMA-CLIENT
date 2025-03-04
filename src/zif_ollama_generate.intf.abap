@@ -1,5 +1,5 @@
 "! Provides methods to generate text using Ollama models.
-interface ZIF_OLLAMA_GENERATION
+interface ZIF_OLLAMA_GENERATE
   public .
 
 
