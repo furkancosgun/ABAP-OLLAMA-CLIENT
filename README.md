@@ -95,13 +95,13 @@ DATA(ls_chat_response) = lo_ollama_client->chat(
              ( role    = zif_ollama_chat=>mc_chat_message_roles-user
                content = 'Hello' )
 
-             ( role    = zif_ollama_chat=>mc_chat_message_roles-system
+             ( role    = zif_ollama_chat=>mc_chat_message_roles-assistant
                content = 'Hello! How can I assist you today?' )
 
              ( role    = zif_ollama_chat=>mc_chat_message_roles-user
                content = 'What is the sum of 5 and 3?' )
 
-             ( role    = zif_ollama_chat=>mc_chat_message_roles-system
+             ( role    = zif_ollama_chat=>mc_chat_message_roles-assistant
                content = '8' )
 
              ( role    = zif_ollama_chat=>mc_chat_message_roles-user
