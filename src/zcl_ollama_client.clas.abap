@@ -30,9 +30,6 @@ CLASS zcl_ollama_client DEFINITION
                 iv_timo TYPE i                           DEFAULT zif_ollama_common=>mc_default_timo
                 it_head TYPE zif_ollama_http=>ty_headers OPTIONAL.
 
-    METHODS prepare_options
-      CHANGING ct_options TYPE zif_ollama_common=>ty_options.
-
     DATA host   TYPE string.
     DATA head   TYPE zif_ollama_http=>ty_headers.
     DATA http   TYPE REF TO zif_ollama_http.
@@ -73,15 +70,6 @@ CLASS zcl_ollama_client IMPLEMENTATION.
     parser = zcl_ollama_parser=>get_instance( ).
   ENDMETHOD.
 
-  METHOD prepare_options.
-    IF NOT line_exists( ct_options[ key = zif_ollama_client=>mc_options-stream ] ).
-      INSERT VALUE #( key   = zif_ollama_client=>mc_options-stream
-                      value = REF #( abap_false ) ) INTO TABLE ct_options.
-    ELSE.
-      ct_options[ key = zif_ollama_client=>mc_options-stream ]-value = REF #( abap_false ).
-    ENDIF.
-  ENDMETHOD.
-
   METHOD zif_ollama_connection~check_connection.
     TRY.
         http->get( iv_url     = |{ host }{ zif_ollama_client=>mc_endpoints-tags }|
@@ -96,10 +84,9 @@ CLASS zcl_ollama_client IMPLEMENTATION.
     DATA request  TYPE string.
     DATA response TYPE string.
 
-    prepare_options( CHANGING ct_options = is_request-options ).
+    is_request-stream = abap_false.
 
-    request = parser->serialize( data    = is_request
-                                 options = abap_true ).
+    request = parser->serialize( is_request ).
     response = http->post( iv_url     = |{ host }{ zif_ollama_client=>mc_endpoints-chat }|
                            it_headers = head
                            iv_data    = request ).
@@ -111,10 +98,9 @@ CLASS zcl_ollama_client IMPLEMENTATION.
     DATA request  TYPE string.
     DATA response TYPE string.
 
-    prepare_options( CHANGING ct_options = is_request-options ).
+    is_request-stream = abap_false.
 
-    request = parser->serialize( data    = is_request
-                                 options = abap_true ).
+    request = parser->serialize( is_request ).
 
     response = http->post( iv_url     = |{ host }{ zif_ollama_client=>mc_endpoints-embed }|
                            it_headers = head
@@ -127,10 +113,9 @@ CLASS zcl_ollama_client IMPLEMENTATION.
     DATA request  TYPE string.
     DATA response TYPE string.
 
-    prepare_options( CHANGING ct_options = is_request-options ).
+    is_request-stream = abap_false.
 
-    request = parser->serialize( data    = is_request
-                                 options = abap_true ).
+    request = parser->serialize( is_request ).
 
     response = http->post( iv_url     = |{ host }{ zif_ollama_client=>mc_endpoints-generate }|
                            it_headers = head

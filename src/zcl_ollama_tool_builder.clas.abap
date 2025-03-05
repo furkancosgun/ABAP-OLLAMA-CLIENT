@@ -47,7 +47,8 @@ CLASS zcl_ollama_tool_builder IMPLEMENTATION.
                           type = CAST #( lo_paramtype ) ) TO rt_component.
         WHEN OTHERS.
           RAISE EXCEPTION TYPE zcx_ollama_message
-            EXPORTING message = |Unsupported type ({ lo_typedescr->absolute_name })!|.
+            EXPORTING
+              message = |Unsupported type ({ lo_typedescr->absolute_name })!|.
       ENDCASE.
     ENDLOOP.
   ENDMETHOD.
@@ -112,8 +113,9 @@ CLASS zcl_ollama_tool_builder IMPLEMENTATION.
                PARAMETER-TABLE lt_parameters.
       CATCH cx_root INTO DATA(lx_root).
         RAISE EXCEPTION TYPE zcx_ollama_message
-          EXPORTING previous = lx_root
-                    message  = lx_root->get_text( ).
+          EXPORTING
+            previous = lx_root
+            message  = lx_root->get_text( ).
     ENDTRY.
   ENDMETHOD.
 
@@ -137,20 +139,23 @@ CLASS zcl_ollama_tool_builder IMPLEMENTATION.
         lo_clasdescr ?= cl_abap_classdescr=>describe_by_name( ls_spec-class ).
       CATCH cx_root.
         RAISE EXCEPTION TYPE zcx_ollama_message
-          EXPORTING message = 'Class not found!'.
+          EXPORTING
+            message = 'Class not found!'.
     ENDTRY.
 
     READ TABLE lo_clasdescr->methods WITH KEY name = mc_method_name REFERENCE INTO lo_methdescr.
     IF sy-subrc <> 0.
       RAISE EXCEPTION TYPE zcx_ollama_message
-        EXPORTING message = |Method not found ({ mc_method_name })!|.
+        EXPORTING
+          message = |Method not found ({ mc_method_name })!|.
     ENDIF.
 
     lt_component = get_method_parameters( io_clasdescr = lo_clasdescr
                                           io_methdescr = lo_methdescr ).
     IF lt_component IS INITIAL.
       RAISE EXCEPTION TYPE zcx_ollama_message
-        EXPORTING message = |Method can't be resolved!|.
+        EXPORTING
+          message = |Method can't be resolved!|.
     ENDIF.
 
     lo_strudescr ?= cl_abap_structdescr=>create( lt_component ).
@@ -159,8 +164,9 @@ CLASS zcl_ollama_tool_builder IMPLEMENTATION.
         CREATE DATA rs_request-function-parameters-properties TYPE HANDLE lo_strudescr.
       CATCH cx_root INTO DATA(lx_root).
         RAISE EXCEPTION TYPE zcx_ollama_message
-          EXPORTING previous = lx_root
-                    message  = lx_root->get_text( ).
+          EXPORTING
+            previous = lx_root
+            message  = lx_root->get_text( ).
     ENDTRY.
     ASSIGN rs_request-function-parameters-properties->* TO FIELD-SYMBOL(<fs_properties>).
 

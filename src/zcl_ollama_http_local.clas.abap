@@ -57,10 +57,10 @@ CLASS zcl_ollama_http_local IMPLEMENTATION.
     DATA lv_funcname         TYPE funcname.
     DATA lt_request_headers  TYPE ty_payload.
     DATA lt_request_body     TYPE ty_payload.
-    DATA lt_response_body    TYPE ty_payload.
-    DATA lt_response_headers TYPE ty_payload.
     DATA lv_http_code        TYPE char3.
     DATA lv_http_text        TYPE char1024.
+    DATA lt_response_body    TYPE ty_payload.
+    DATA lt_response_headers TYPE ty_payload.
 
     lv_funcname = |HTTP_{ iv_method }|.
 

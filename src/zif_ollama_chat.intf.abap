@@ -63,6 +63,7 @@ INTERFACE zif_ollama_chat
       messages TYPE STANDARD TABLE OF ty_chat_message WITH EMPTY KEY,
       tools    TYPE ty_tools_request,              " Tools                               " List of messages
       options  TYPE zif_ollama_common=>ty_options, " Additional options
+      stream   TYPE abap_bool, " Stream
     END OF ty_chat_request.
   TYPES:
     " Represents a response containing chat-based generated text.
