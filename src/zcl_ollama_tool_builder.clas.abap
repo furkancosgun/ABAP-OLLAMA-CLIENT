@@ -29,33 +29,33 @@ CLASS zcl_ollama_tool_builder DEFINITION
                 io_clasdescr  TYPE REF TO cl_abap_classdescr
                 io_methdescr  TYPE REF TO abap_methdescr
       CHANGING  cs_properties TYPE any.
+
 ENDCLASS.
 
 
 CLASS zcl_ollama_tool_builder IMPLEMENTATION.
   METHOD get_method_parameters.
     DATA lo_parmdescr TYPE REF TO abap_parmdescr.
+    DATA lo_typedescr TYPE REF TO cl_abap_typedescr.
 
     DATA(lo_paramtype) = cl_abap_typedescr=>describe_by_data( VALUE ty_parameters_element( ) ).
 
     LOOP AT io_methdescr->parameters REFERENCE INTO lo_parmdescr WHERE parm_kind = cl_abap_objectdescr=>importing.
-      DATA(lo_typedescr) = io_clasdescr->get_method_parameter_type( p_method_name    = mc_method_name
-                                                                    p_parameter_name = lo_parmdescr->name ).
+      lo_typedescr = io_clasdescr->get_method_parameter_type( p_method_name    = mc_method_name
+                                                              p_parameter_name = lo_parmdescr->name ).
       CASE lo_typedescr->kind.
         WHEN cl_abap_typedescr=>kind_elem.
           APPEND VALUE #( name = lo_parmdescr->name
                           type = CAST #( lo_paramtype ) ) TO rt_component.
         WHEN OTHERS.
           RAISE EXCEPTION TYPE zcx_ollama_message
-            EXPORTING
-              message = |Unsupported type ({ lo_typedescr->absolute_name })!|.
+            EXPORTING message = |Unsupported parameter type: { lo_typedescr->absolute_name }|.
       ENDCASE.
     ENDLOOP.
   ENDMETHOD.
 
   METHOD set_parameter_details.
     DATA lo_parmdescr TYPE REF TO abap_parmdescr.
-
     FIELD-SYMBOLS <fs_field> TYPE ty_parameters_element.
 
     LOOP AT io_methdescr->parameters REFERENCE INTO lo_parmdescr WHERE parm_kind = cl_abap_objectdescr=>importing.
@@ -63,6 +63,7 @@ CLASS zcl_ollama_tool_builder IMPLEMENTATION.
       IF sy-subrc <> 0.
         CONTINUE.
       ENDIF.
+
       DATA(lo_typedescr) = io_clasdescr->get_method_parameter_type( p_method_name    = mc_method_name
                                                                     p_parameter_name = lo_parmdescr->name ).
       CASE lo_parmdescr->type_kind.
@@ -76,7 +77,7 @@ CLASS zcl_ollama_tool_builder IMPLEMENTATION.
           OR cl_abap_objectdescr=>typekind_decfloat34.
           <fs_field>-type = zif_ollama_tool_builder=>mc_argument_types-number.
         WHEN OTHERS.
-          IF lo_typedescr->absolute_name CS 'ABAP_BOOL'.
+          IF '\TYPE-POOL=ABAP\TYPE=ABAP_BOOL\TYPE=BOOLEAN\TYPE=BOOLE_D\TYPE=XFELD' CS lo_typedescr->absolute_name.
             <fs_field>-type = zif_ollama_tool_builder=>mc_argument_types-boolean.
           ELSE.
             <fs_field>-type = zif_ollama_tool_builder=>mc_argument_types-string.
@@ -93,29 +94,64 @@ CLASS zcl_ollama_tool_builder IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD zif_ollama_tool_builder~to_abap.
-    DATA lo_strucdescr TYPE REF TO cl_abap_structdescr.
-    DATA lt_parameters TYPE abap_parmbind_tab.
+    DATA lo_struct_descr TYPE REF TO cl_abap_structdescr.
+    DATA lt_parameters   TYPE abap_parmbind_tab.
+    DATA lo_class_descr  TYPE REF TO cl_abap_classdescr.
+    DATA lr_input        TYPE REF TO data.
 
-    ASSIGN is_response-function-arguments->* TO FIELD-SYMBOL(<fs_parameters>).
-    lo_strucdescr ?= cl_abap_typedescr=>describe_by_data( <fs_parameters> ).
+    FIELD-SYMBOLS <fs_parameters> TYPE any.
+    FIELD-SYMBOLS <fs_input>      TYPE any.
+    FIELD-SYMBOLS <fs_value>      TYPE any.
 
-    LOOP AT lo_strucdescr->get_components( ) ASSIGNING FIELD-SYMBOL(<fs_component>).
-      ASSIGN COMPONENT <fs_component>-name OF STRUCTURE <fs_parameters> TO FIELD-SYMBOL(<fs_val>).
-      IF sy-subrc = 0.
-        INSERT VALUE #( name  = <fs_component>-name
-                        kind  = cl_abap_objectdescr=>exporting
-                        value = <fs_val> ) INTO TABLE lt_parameters.
+    TRY.
+        lo_class_descr ?= cl_abap_classdescr=>describe_by_name( is_response-function-name ).
+      CATCH cx_root.
+        RAISE EXCEPTION TYPE zcx_ollama_message
+          EXPORTING message = 'Class not found!'.
+    ENDTRY.
+
+    IF NOT line_exists( lo_class_descr->methods[ name = mc_method_name ] ).
+      RAISE EXCEPTION TYPE zcx_ollama_message
+        EXPORTING message = |Method not found: { mc_method_name }|.
+    ENDIF.
+
+    IF is_response-function-arguments IS INITIAL.
+      RAISE EXCEPTION TYPE zcx_ollama_message
+        EXPORTING message = |Method parameters could not be found!|.
+    ENDIF.
+
+    ASSIGN is_response-function-arguments->* TO <fs_parameters>.
+    lo_struct_descr ?= cl_abap_typedescr=>describe_by_data( <fs_parameters> ).
+
+    LOOP AT lo_struct_descr->get_components( ) ASSIGNING FIELD-SYMBOL(<fs_component>).
+      ASSIGN COMPONENT <fs_component>-name OF STRUCTURE <fs_parameters> TO FIELD-SYMBOL(<fs_ref_input>).
+      IF sy-subrc <> 0.
+        CONTINUE.
       ENDIF.
+
+      DATA(lo_param_type) = lo_class_descr->get_method_parameter_type( p_method_name    = mc_method_name
+                                                                       p_parameter_name = <fs_component>-name ).
+
+      CREATE DATA lr_input TYPE HANDLE lo_param_type.
+
+      ASSIGN <fs_ref_input>->* TO <fs_input>.
+
+      ASSIGN lr_input->* TO <fs_value>.
+
+      <fs_value> = <fs_input>.
+
+      INSERT VALUE #( name  = <fs_component>-name
+                      kind  = cl_abap_objectdescr=>exporting
+                      value = lr_input ) INTO TABLE lt_parameters.
     ENDLOOP.
 
     TRY.
         CREATE OBJECT ro_instance TYPE (is_response-function-name)
-               PARAMETER-TABLE lt_parameters.
-      CATCH cx_root INTO DATA(lx_root).
+          PARAMETER-TABLE lt_parameters.
+      CATCH cx_root INTO DATA(lx_exception).
         RAISE EXCEPTION TYPE zcx_ollama_message
-          EXPORTING
-            previous = lx_root
-            message  = lx_root->get_text( ).
+          EXPORTING previous = lx_exception
+                    message  = lx_exception->get_text( ).
     ENDTRY.
   ENDMETHOD.
 
@@ -139,23 +175,20 @@ CLASS zcl_ollama_tool_builder IMPLEMENTATION.
         lo_clasdescr ?= cl_abap_classdescr=>describe_by_name( ls_spec-class ).
       CATCH cx_root.
         RAISE EXCEPTION TYPE zcx_ollama_message
-          EXPORTING
-            message = 'Class not found!'.
+          EXPORTING message = 'Class not found!'.
     ENDTRY.
 
     READ TABLE lo_clasdescr->methods WITH KEY name = mc_method_name REFERENCE INTO lo_methdescr.
     IF sy-subrc <> 0.
       RAISE EXCEPTION TYPE zcx_ollama_message
-        EXPORTING
-          message = |Method not found ({ mc_method_name })!|.
+        EXPORTING message = |Method { mc_method_name } not found!|.
     ENDIF.
 
     lt_component = get_method_parameters( io_clasdescr = lo_clasdescr
                                           io_methdescr = lo_methdescr ).
     IF lt_component IS INITIAL.
       RAISE EXCEPTION TYPE zcx_ollama_message
-        EXPORTING
-          message = |Method can't be resolved!|.
+        EXPORTING message = |Method parameters could not be found!|.
     ENDIF.
 
     lo_strudescr ?= cl_abap_structdescr=>create( lt_component ).
@@ -164,9 +197,8 @@ CLASS zcl_ollama_tool_builder IMPLEMENTATION.
         CREATE DATA rs_request-function-parameters-properties TYPE HANDLE lo_strudescr.
       CATCH cx_root INTO DATA(lx_root).
         RAISE EXCEPTION TYPE zcx_ollama_message
-          EXPORTING
-            previous = lx_root
-            message  = lx_root->get_text( ).
+          EXPORTING previous = lx_root
+                    message  = lx_root->get_text( ).
     ENDTRY.
     ASSIGN rs_request-function-parameters-properties->* TO FIELD-SYMBOL(<fs_properties>).
 

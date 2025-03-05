@@ -6,10 +6,10 @@ INTERFACE zif_ollama_generate
   TYPES:
     " Represents a request for text generation.
     BEGIN OF ty_generate_request,
-      model   TYPE string,                        " Model name
-      prompt  TYPE string,                        " Input prompt
-      options TYPE zif_ollama_common=>ty_options, " Additional options
-      stream  TYPE abap_bool,                     " Stream
+      model   TYPE string,      " Model name
+      prompt  TYPE string,      " Input prompt
+      options TYPE REF TO data, " zif_ollama_common=>ty_options, " Additional options
+      stream  TYPE abap_bool,   " Stream
     END OF ty_generate_request.
   TYPES:
     " Represents a response containing generated text.

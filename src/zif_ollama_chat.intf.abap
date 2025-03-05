@@ -59,11 +59,11 @@ INTERFACE zif_ollama_chat
   TYPES:
     " Represents a request for chat-based text generation.
     BEGIN OF ty_chat_request,
-      model    TYPE string,                        " Model name
+      model    TYPE string,           " Model name
       messages TYPE STANDARD TABLE OF ty_chat_message WITH EMPTY KEY,
-      tools    TYPE ty_tools_request,              " Tools                               " List of messages
-      options  TYPE zif_ollama_common=>ty_options, " Additional options
-      stream   TYPE abap_bool, " Stream
+      tools    TYPE ty_tools_request, " Tools                               " List of messages
+      options  TYPE REF TO data,      " Additional options
+      stream   TYPE abap_bool,        " Stream
     END OF ty_chat_request.
   TYPES:
     " Represents a response containing chat-based generated text.
