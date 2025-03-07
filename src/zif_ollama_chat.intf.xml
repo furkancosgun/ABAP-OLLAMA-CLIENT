@@ -4,7 +4,7 @@
   <asx:values>
    <VSEOINTERF>
     <CLSNAME>ZIF_OLLAMA_CHAT</CLSNAME>
-    <LANGU>E</LANGU>
+    <LANGU>T</LANGU>
     <DESCRIPT>Ollama Chat Intf</DESCRIPT>
     <EXPOSURE>2</EXPOSURE>
     <STATE>1</STATE>
