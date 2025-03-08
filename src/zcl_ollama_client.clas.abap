@@ -84,7 +84,7 @@ CLASS zcl_ollama_client IMPLEMENTATION.
     DATA request  TYPE string.
     DATA response TYPE string.
 
-    is_request-stream = abap_false.
+    is_request-stream = '-'.
 
     request = parser->serialize( is_request ).
     response = http->post( iv_url     = |{ host }{ zif_ollama_client=>mc_endpoints-chat }|
@@ -98,7 +98,7 @@ CLASS zcl_ollama_client IMPLEMENTATION.
     DATA request  TYPE string.
     DATA response TYPE string.
 
-    is_request-stream = abap_false.
+    is_request-stream = '-'.
 
     request = parser->serialize( is_request ).
 
@@ -113,7 +113,7 @@ CLASS zcl_ollama_client IMPLEMENTATION.
     DATA request  TYPE string.
     DATA response TYPE string.
 
-    is_request-stream = abap_false.
+    is_request-stream = '-'.
 
     request = parser->serialize( is_request ).
 

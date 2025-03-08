@@ -12,7 +12,7 @@ CLASS zcl_ollama_http_local DEFINITION
       IMPORTING iv_timeout TYPE i.
 
   PRIVATE SECTION.
-    TYPES ty_payload TYPE STANDARD TABLE OF char1024 WITH EMPTY KEY.
+    TYPES ty_payload TYPE STANDARD TABLE OF char2048 WITH EMPTY KEY.
 
     DATA timeout TYPE i.
 
@@ -50,42 +50,60 @@ CLASS zcl_ollama_http_local IMPLEMENTATION.
 
   METHOD handle_http_error.
     RAISE EXCEPTION TYPE zcx_ollama_message
-      EXPORTING message = |HTTP Error: { iv_status_code } - { iv_status_text }|.
+      EXPORTING
+        message = |HTTP Error: { iv_status_code } - { iv_status_text }|.
   ENDMETHOD.
 
   METHOD send_request.
-    DATA lv_funcname         TYPE funcname.
-    DATA lt_request_headers  TYPE ty_payload.
-    DATA lt_request_body     TYPE ty_payload.
-    DATA lv_http_code        TYPE char3.
-    DATA lv_http_text        TYPE char1024.
-    DATA lt_response_body    TYPE ty_payload.
-    DATA lt_response_headers TYPE ty_payload.
+    DATA lv_funcname                TYPE funcname.
+    DATA lt_request_headers         TYPE ty_payload.
+    DATA lv_http_code               TYPE char3.
+    DATA lv_http_text               TYPE char1024.
+    DATA lt_response_body           TYPE ty_payload.
+    DATA lt_response_headers        TYPE ty_payload.
+    DATA request_entity_body_length TYPE i.
+    DATA lr_request_body_tab        TYPE REF TO data.
+    DATA lr_request_body_lin        TYPE REF TO data.
+    FIELD-SYMBOLS <fs_req_body_lin> TYPE any.
+    FIELD-SYMBOLS <fs_req_body_tab> TYPE STANDARD TABLE.
 
-    lv_funcname = |HTTP_{ iv_method }|.
+    request_entity_body_length = strlen( iv_data ).
+
+    lv_funcname = |HTTP2_{ iv_method }|.
 
     lt_request_headers = VALUE #( FOR header IN it_headers
                                   ( |{ header-name }: { header-value }| ) ).
 
     IF iv_data IS NOT INITIAL.
-      SPLIT iv_data
-            AT cl_abap_char_utilities=>newline
-            INTO TABLE lt_request_body.
+      CREATE DATA lr_request_body_lin TYPE c LENGTH request_entity_body_length.
+      ASSIGN lr_request_body_lin->* TO <fs_req_body_lin>.
+
+      CREATE DATA lr_request_body_tab LIKE TABLE OF <fs_req_body_lin>.
+      ASSIGN lr_request_body_tab->* TO <fs_req_body_tab>.
+
+      APPEND iv_data TO <fs_req_body_tab>.
+    ELSE.
+      CREATE DATA lr_request_body_tab TYPE STANDARD TABLE OF char255.
+      ASSIGN lr_request_body_tab->* TO <fs_req_body_tab>.
     ENDIF.
 
     CALL FUNCTION lv_funcname
-      EXPORTING  absolute_uri               = CONV char1024( iv_url )
-                 rfc_destination            = 'SAPHTTP'
-                 timeout                    = timeout
-                 request_entity_body_length = strlen( iv_data )
-                 blankstocrlf               = abap_true
-      IMPORTING  status_code                = lv_http_code
-                 status_text                = lv_http_text
-      TABLES     request_entity_body        = lt_request_body
-                 response_entity_body       = lt_response_body
-                 response_headers           = lt_response_headers
-                 request_headers            = lt_request_headers
-      EXCEPTIONS OTHERS                     = 1.
+      EXPORTING
+        absolute_uri               = CONV char1024( iv_url )
+        rfc_destination            = 'SAPHTTP'
+        timeout                    = timeout
+        request_entity_body_length = request_entity_body_length
+        blankstocrlf               = abap_true
+      IMPORTING
+        status_code                = lv_http_code
+        status_text                = lv_http_text
+      TABLES
+        request_entity_body        = <fs_req_body_tab>
+        response_entity_body       = lt_response_body
+        response_headers           = lt_response_headers
+        request_headers            = lt_request_headers
+      EXCEPTIONS
+        OTHERS                     = 1.
     IF sy-subrc <> 0.
       MESSAGE ID sy-msgid TYPE sy-msgty NUMBER sy-msgno
               INTO lv_http_text

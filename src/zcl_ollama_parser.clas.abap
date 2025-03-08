@@ -4,7 +4,6 @@ CLASS zcl_ollama_parser DEFINITION
 
   PUBLIC SECTION.
     "! Returns a singleton instance of the parser.
-    "!
     CLASS-METHODS get_instance
       RETURNING VALUE(ro_instance) TYPE REF TO zif_ollama_parser.
 
@@ -33,6 +32,7 @@ CLASS zcl_ollama_parser IMPLEMENTATION.
 
   METHOD zif_ollama_parser~serialize.
     rv_data = /ui2/cl_json=>serialize( data        = data
-                                       pretty_name = /ui2/cl_json=>pretty_mode-low_case ).
+                                       pretty_name = /ui2/cl_json=>pretty_mode-low_case
+                                       compress    = abap_true ).
   ENDMETHOD.
 ENDCLASS.
