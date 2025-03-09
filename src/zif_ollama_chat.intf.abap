@@ -87,6 +87,7 @@ INTERFACE zif_ollama_chat
       system    TYPE string VALUE 'system',    " System role
       user      TYPE string VALUE 'user',      " User role
       assistant TYPE string VALUE 'assistant', " Assistant role
+      tool      TYPE string VALUE 'tool',      " Tool role
     END OF mc_chat_message_roles.
 
   METHODS chat
